@@ -234,7 +234,8 @@ static void cube_render_lines(Canvas canvas, const Cube *cube) {
 }
 
 static void cube_rotate(Cube *cube, bool dir) {
-    Vector3 axis = cube->areas[CUBE_FRONT].c;
+    Vector3 v = cube->areas[CUBE_FRONT].a;
+    Vector3 axis = { v.x, v.y, 0.0f };
 
     for (size_t i=0; i < 6; ++i) {
         area_rotate(&cube->areas[i], dir, axis);
@@ -252,7 +253,8 @@ int main(void) {
     Canvas canvas = { 0 };
     canvas_fill(canvas, BLACK);
 
-    Cube cube = cube_new((Vector3){ 0.3, 0.3, 0.0 }, 0.3);
+    float size = 0.3f;
+    Cube cube = cube_new((Vector3){ 0.5-size/2, 0.5-size/2, 0.0 }, size);
 
     while (!WindowShouldClose()) {
         BeginDrawing();
