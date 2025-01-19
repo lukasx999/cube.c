@@ -1,16 +1,22 @@
+#define _POSIX_C_SOURCE 199309L
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
 #include <math.h>
 
 #include <raylib.h>
 #include <raymath.h>
+#include <time.h>
 
 
 #define WIDTH 1920
 #define HEIGHT 1080
 #define BACKGROUND_COLOR (Color) { 51, 51, 51, 255 }
 
-#define CANVAS_WIDTH 1000
+// #define CANVAS_WIDTH 1000
+#define CANVAS_WIDTH 50
 #define CANVAS_HEIGHT CANVAS_WIDTH
 #define RECT_SIZE 1
 
@@ -135,9 +141,9 @@ static void area_into_canvas_lines(Canvas canvas, const Area *area) {
 
 }
 
-static void area_rotate(Area *area, bool dir, Vector3 axis) {
+static void area_rotate(Area *area, bool rev, Vector3 axis) {
     float angle = 0.1f;
-    if (dir)
+    if (rev)
         angle *= -1.0f;
     area->a = Vector3RotateByAxisAngle(area->a, axis, angle);
     area->b = Vector3RotateByAxisAngle(area->b, axis, angle);
@@ -230,25 +236,57 @@ static void cube_render_lines(Canvas canvas, const Cube *cube) {
         // if (!area_is_on_screen(&cube->areas[i]))
         //     continue;
         area_into_canvas_lines(canvas, &cube->areas[i]);
+        // area_into_canvas(canvas, &cube->areas[i]);
     }
 }
 
-static void cube_rotate(Cube *cube, bool dir) {
-    Vector3 v = cube->areas[CUBE_FRONT].a;
-    Vector3 axis = { v.x, v.y, 0.0f };
+static void cube_rotate(Cube *cube, bool rev) {
+    Vector3 axis = cube->areas[CUBE_FRONT].a;
 
     for (size_t i=0; i < 6; ++i) {
-        area_rotate(&cube->areas[i], dir, axis);
+        area_rotate(&cube->areas[i], rev, axis);
     }
 }
 
 
 
+static void canvas_to_ascii(Canvas canvas) {
+    for (size_t y=0; y < CANVAS_HEIGHT; ++y) {
+        for (size_t x=0; x < CANVAS_WIDTH; ++x) {
+            Color c = canvas[y][x];
+            Color ref = BLACK;
+            if (!memcmp(&c, &ref, sizeof (Color)))
+                putchar(' ');
+            else
+                putchar('`');
+        }
+        puts("");
+    }
+}
 
 
+typedef enum {
+    MODE_GUI,
+    MODE_TUI
+    // TODO:
+    // mode_xlib,
+    // mode_wl,
+    // mode_opengl
+} Mode;
 
-int main(void) {
-    InitWindow(WIDTH, HEIGHT, "cube");
+int main(int argc, char **argv) {
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <gui | tui>", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    const char *mode = argv[1];
+
+    if (!strcmp(mode, "gui")) {
+    }
+
+
 
     Canvas canvas = { 0 };
     canvas_fill(canvas, BLACK);
@@ -256,24 +294,29 @@ int main(void) {
     float size = 0.3f;
     Cube cube = cube_new((Vector3){ 0.5-size/2, 0.5-size/2, 0.0 }, size);
 
+    while (true) {
+        system("clear");
+        cube_rotate(&cube, false);
+        cube_render_lines(canvas, &cube);
+        canvas_to_ascii(canvas);
+        struct timespec time = { .tv_nsec = 1e8 };
+        nanosleep(&time, NULL);
+        canvas_fill(canvas, BLACK);
+    }
+    return 0;
+
+    InitWindow(WIDTH, HEIGHT, "cube");
+
     while (!WindowShouldClose()) {
         BeginDrawing();
         {
             ClearBackground(BACKGROUND_COLOR);
             canvas_render(canvas);
 
-            if (IsKeyDown(KEY_J)) {
-                cube_rotate(&cube, false);
-            }
-
-            if (IsKeyDown(KEY_K)) {
-                cube_rotate(&cube, true);
-            }
+            cube_rotate(&cube, false);
 
             canvas_fill(canvas, BLACK);
             cube_render_lines(canvas, &cube);
-
-
         }
         EndDrawing();
     }
