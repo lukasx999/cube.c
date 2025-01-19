@@ -4,9 +4,11 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <assert.h>
 #include <math.h>
 
 #include <raylib.h>
+#include <ncurses.h>
 #include <raymath.h>
 #include <time.h>
 
@@ -123,34 +125,10 @@ static void area_into_canvas_lines(Canvas *canvas, const Area *area) {
     Vector3 c = Vector3Multiply(vector3_invert_y(area->c), canvas_dimensions);
     Vector3 d = Vector3Multiply(vector3_invert_y(area->d), canvas_dimensions);
 
-    canvas_draw_line(
-        canvas,
-        a,
-        b,
-        area->color
-    );
-
-    canvas_draw_line(
-        canvas,
-        a,
-        c,
-        area->color
-    );
-
-    canvas_draw_line(
-        canvas,
-        c,
-        d,
-        area->color
-    );
-
-    canvas_draw_line(
-        canvas,
-        b,
-        d,
-        area->color
-    );
-
+    canvas_draw_line(canvas, a, b, area->color);
+    canvas_draw_line(canvas, a, c, area->color);
+    canvas_draw_line(canvas, c, d, area->color);
+    canvas_draw_line(canvas, b, d, area->color);
 }
 
 static void area_rotate(Area *area, bool rev, Vector3 axis) {
@@ -185,7 +163,7 @@ static Cube cube_new(Vector3 origin, float size, Color *colors) {
 
     Area bottom = {
         origin,
-        Vector3Add(origin, (Vector3) { size, 0.0f, 0.0f }),
+        Vector3Add(origin, (Vector3) { size, 0.0f, 0.0f  }),
         Vector3Add(origin, (Vector3) { 0.0f, 0.0f, -size }),
         Vector3Add(origin, (Vector3) { size, 0.0f, -size }),
         colors[0]
@@ -291,19 +269,80 @@ typedef enum {
 
 
 
+
+
+static void run_gui(Canvas *canvas, Cube *cube) {
+
+
+    InitWindow(WIDTH, HEIGHT, "cube");
+    SetTargetFPS(30);
+
+    while (!WindowShouldClose()) {
+        BeginDrawing();
+        {
+            ClearBackground(BACKGROUND_COLOR);
+            canvas_render(canvas);
+
+            cube_rotate(cube, false);
+
+            canvas_fill(canvas, BLACK);
+            cube_render_lines(canvas, cube);
+        }
+        EndDrawing();
+    }
+
+    CloseWindow();
+}
+
+
+static void run_tui(Canvas *canvas, Cube *cube) {
+    while (true) {
+        system("clear");
+        cube_rotate(cube, false);
+        cube_render_lines(canvas, cube);
+        canvas_to_ascii(canvas);
+        struct timespec time = { .tv_nsec = 1e8 };
+        nanosleep(&time, NULL);
+        canvas_fill(canvas, BLACK);
+    }
+}
+
+
+
+
+
+
 int main(int argc, char **argv) {
 
-    // if (argc < 2) {
-    //     fprintf(stderr, "Usage: %s <gui | tui>", argv[0]);
-    //     return EXIT_FAILURE;
-    // }
-
-    // const char *mode = argv[1];
-    // if (!strcmp(mode, "gui")) {
-    // }
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <mode = gui | tui>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
 
 
-    size_t width = 1000;
+    Mode mode;
+    if (!strcmp(argv[1], "gui"))
+        mode = MODE_GUI;
+    else if (!strcmp(argv[1], "tui"))
+        mode = MODE_TUI;
+    else {
+        fprintf(stderr, "Unknown mode: %s\n", argv[1]);
+        return EXIT_FAILURE;
+    }
+
+
+    size_t width, height;
+    if (mode == MODE_TUI) {
+        width  = getmaxx(stdscr);
+        height = getmaxy(stdscr);
+    } else if (mode == MODE_GUI) {
+        // width = GetScreenWidth();
+        // height = GetScreenHeight();
+        width  = 500;
+        height = 500;
+    } else
+        assert(!"invalid mode");
+
     Canvas canvas = canvas_new(width, width);
     canvas_fill(&canvas, BLACK);
 
@@ -314,41 +353,19 @@ int main(int argc, char **argv) {
     colors[CUBE_BACK]   = YELLOW;
     colors[CUBE_LEFT]   = GREEN;
     colors[CUBE_RIGHT]  = PURPLE;
-    float size = 0.4f;
-    Cube cube = cube_new((Vector3){ 0.5-size/2, 0.5-size/2, 0.0 }, size, colors);
+    float size     = 0.4f;
+    Vector3 origin = { 0.5 - size / 2, 0.5 - size / 2, 0.0 };
+    Cube cube      = cube_new(origin, size, colors);
 
-    #if 0
-    while (true) {
-        system("clear");
-        cube_rotate(&cube, false);
-        cube_render_lines(canvas, &cube);
-        canvas_to_ascii(canvas);
-        struct timespec time = { .tv_nsec = 1e8 };
-        nanosleep(&time, NULL);
-        canvas_fill(canvas, BLACK);
-    }
-    return 0;
-    #else
 
-    InitWindow(WIDTH, HEIGHT, "cube");
-    SetTargetFPS(30);
+    if (mode == MODE_TUI)
+        run_tui(&canvas, &cube);
+    else if (mode == MODE_GUI)
+        run_gui(&canvas, &cube);
+    else
+        assert(!"invalid mode");
 
-    while (!WindowShouldClose()) {
-        BeginDrawing();
-        {
-            ClearBackground(BACKGROUND_COLOR);
-            canvas_render(&canvas);
 
-            cube_rotate(&cube, false);
-
-            canvas_fill(&canvas, BLACK);
-            cube_render_lines(&canvas, &cube);
-        }
-        EndDrawing();
-    }
-
-    CloseWindow();
-    #endif
 
     canvas_destroy(&canvas);
     return EXIT_SUCCESS;
