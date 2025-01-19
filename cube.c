@@ -15,51 +15,71 @@
 #define HEIGHT 1080
 #define BACKGROUND_COLOR (Color) { 51, 51, 51, 255 }
 
-#define CANVAS_WIDTH 1000
-#define CANVAS_HEIGHT CANVAS_WIDTH
 #define RECT_SIZE 1
 
-typedef Color Canvas[CANVAS_HEIGHT][CANVAS_WIDTH];
-
-
-static void vector3_print(Vector3 v) {
-    printf("x = %f, y = %f, z = %f\n", v.x, v.y, v.z);
-}
 
 static Vector3 vector3_invert_y(Vector3 v) {
     v.y = 1.0f - v.y;
     return v;
 }
 
-static void draw_line(Canvas canvas, Vector3 start, Vector3 end, Color color) {
+
+
+
+
+
+typedef struct {
+    Color **grid;
+    size_t width, height;
+} Canvas;
+
+static Canvas canvas_new(size_t width, size_t height) {
+    Canvas canvas = { .grid = NULL, .width = width, .height = height };
+
+    canvas.grid = malloc(canvas.height * sizeof(Color*));
+
+    for (size_t y=0; y < canvas.height; ++y) {
+        canvas.grid[y] = malloc(canvas.width * sizeof(Color));
+    }
+
+    return canvas;
+}
+
+static void canvas_destroy(Canvas *canvas) {
+    for (size_t i=0; i < canvas->height; ++i)
+        free(canvas->grid[i]);
+    free(canvas->grid);
+    canvas->grid = NULL;
+}
+
+static void canvas_fill(Canvas *canvas, Color color) {
+    for (size_t y=0; y < canvas->height; ++y)
+        for (size_t x=0; x < canvas->width; ++x)
+            canvas->grid[y][x] = color;
+}
+
+
+static void canvas_draw_line(Canvas *grid, Vector3 start, Vector3 end, Color color) {
     end.x += 1; // cannot draw perfect straight line, as end.x - start-x == 0
     float slope = (end.y - start.y) / (end.x - start.x);
     float step = 0.01f;
     for (float x=start.x; x < end.x; x+=step) {
         float y = slope * (x - start.x) + start.y;
-        if (y > CANVAS_HEIGHT)
+        if (y > grid->height)
             continue;
-        canvas[(size_t)y][(size_t)x] = color;
+        grid->grid[(size_t)y][(size_t)x] = color;
     }
 }
 
 
 
-static void canvas_fill(Canvas canvas, Color color) {
-    for (size_t y=0; y < CANVAS_HEIGHT; ++y) {
-        for (size_t x=0; x < CANVAS_WIDTH; ++x) {
-            canvas[y][x] = color;
-        }
-    }
-}
-
-static void canvas_render(Canvas canvas) {
-    for (size_t y=0; y < CANVAS_HEIGHT; ++y) {
-        for (size_t x=0; x < CANVAS_WIDTH; ++x) {
-            Color c = canvas[y][x];
+static void canvas_render(const Canvas *canvas) {
+    for (size_t y=0; y < canvas->height; ++y) {
+        for (size_t x=0; x < canvas->width; ++x) {
+            Color c = canvas->grid[y][x];
             DrawRectangle(
-                x + WIDTH / 2 - CANVAS_WIDTH / 2,
-                y + HEIGHT / 2 - CANVAS_HEIGHT / 2,
+                x + WIDTH / 2 - canvas->width / 2,
+                y + HEIGHT / 2 - canvas->height / 2,
                 RECT_SIZE,
                 RECT_SIZE,
                 c
@@ -88,44 +108,44 @@ static bool area_is_on_screen(const Area *area) {
     return perp.z < 0 ? false : true;
 }
 
-static void area_into_canvas(Canvas canvas, const Area *area) {
+static void area_into_canvas(Canvas *canvas, const Area *area) {
     float step = 0.01f;
     for (float y=area->a.y; y < area->c.y; y += step) {
         for (float x=area->a.x; x < area->b.x; x += step) {
-            size_t index_x = x * CANVAS_WIDTH;
-            size_t index_y = (1 - y) * CANVAS_HEIGHT;
+            size_t index_x = x * canvas->width;
+            size_t index_y = (1 - y) * canvas->height;
 
-            canvas[index_y][index_x] = area->color;
+            canvas->grid[index_y][index_x] = area->color;
 
         }
     }
 }
 
-static void area_into_canvas_lines(Canvas canvas, const Area *area) {
-    Vector3 canvas_dimensions = { CANVAS_WIDTH, CANVAS_HEIGHT, 0.0f };
+static void area_into_canvas_lines(Canvas *canvas, const Area *area) {
+    Vector3 canvas_dimensions = { canvas->width, canvas->height, 0.0f };
 
-    draw_line(
+    canvas_draw_line(
         canvas,
         Vector3Multiply(vector3_invert_y(area->a), canvas_dimensions),
         Vector3Multiply(vector3_invert_y(area->b), canvas_dimensions),
         area->color
     );
 
-    draw_line(
+    canvas_draw_line(
         canvas,
         Vector3Multiply(vector3_invert_y(area->a), canvas_dimensions),
         Vector3Multiply(vector3_invert_y(area->c), canvas_dimensions),
         area->color
     );
 
-    draw_line(
+    canvas_draw_line(
         canvas,
         Vector3Multiply(vector3_invert_y(area->c), canvas_dimensions),
         Vector3Multiply(vector3_invert_y(area->d), canvas_dimensions),
         area->color
     );
 
-    draw_line(
+    canvas_draw_line(
         canvas,
         Vector3Multiply(vector3_invert_y(area->b), canvas_dimensions),
         Vector3Multiply(vector3_invert_y(area->d), canvas_dimensions),
@@ -225,7 +245,7 @@ static Cube cube_new(Vector3 origin, float size, Color *colors) {
     return cube;
 }
 
-static void cube_render_lines(Canvas canvas, const Cube *cube) {
+static void cube_render_lines(Canvas *canvas, const Cube *cube) {
     for (size_t i=0; i < 6; ++i) {
         // if (!area_is_on_screen(&cube->areas[i]))
         //     continue;
@@ -244,10 +264,10 @@ static void cube_rotate(Cube *cube, bool rev) {
 
 
 
-static void canvas_to_ascii(Canvas canvas) {
-    for (size_t y=0; y < CANVAS_HEIGHT; ++y) {
-        for (size_t x=0; x < CANVAS_WIDTH; ++x) {
-            Color c = canvas[y][x];
+static void canvas_to_ascii(const Canvas *canvas) {
+    for (size_t y=0; y < canvas->height; ++y) {
+        for (size_t x=0; x < canvas->width; ++x) {
+            Color c = canvas->grid[y][x];
             Color ref = BLACK;
             if (!memcmp(&c, &ref, sizeof (Color)))
                 putchar(' ');
@@ -268,6 +288,10 @@ typedef enum {
     // mode_opengl
 } Mode;
 
+
+
+
+
 int main(int argc, char **argv) {
 
     // if (argc < 2) {
@@ -280,9 +304,9 @@ int main(int argc, char **argv) {
     // }
 
 
-
-    Canvas canvas = { 0 };
-    canvas_fill(canvas, BLACK);
+    size_t width = 1000;
+    Canvas canvas = canvas_new(width, width);
+    canvas_fill(&canvas, BLACK);
 
     Color colors[6] = { 0 };
     colors[CUBE_BOTTOM] = RED;
@@ -305,7 +329,7 @@ int main(int argc, char **argv) {
         canvas_fill(canvas, BLACK);
     }
     return 0;
-    #endif
+    #else
 
     InitWindow(WIDTH, HEIGHT, "cube");
     SetTargetFPS(30);
@@ -314,16 +338,19 @@ int main(int argc, char **argv) {
         BeginDrawing();
         {
             ClearBackground(BACKGROUND_COLOR);
-            canvas_render(canvas);
+            canvas_render(&canvas);
 
             cube_rotate(&cube, false);
 
-            canvas_fill(canvas, BLACK);
-            cube_render_lines(canvas, &cube);
+            canvas_fill(&canvas, BLACK);
+            cube_render_lines(&canvas, &cube);
         }
         EndDrawing();
     }
 
     CloseWindow();
+    #endif
+
+    canvas_destroy(&canvas);
     return EXIT_SUCCESS;
 }
