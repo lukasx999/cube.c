@@ -12,9 +12,6 @@
 #include <raymath.h>
 #include <time.h>
 
-
-#define WIDTH 1920
-#define HEIGHT 1080
 #define BACKGROUND_COLOR (Color) { 51, 51, 51, 255 }
 
 #define RECT_SIZE 1
@@ -76,9 +73,16 @@ static void canvas_render(const Canvas *canvas) {
     for (size_t y=0; y < canvas->height; ++y) {
         for (size_t x=0; x < canvas->width; ++x) {
             Color c = canvas->grid[y][x];
+            // DrawRectangle(
+            //     x + WIDTH / 2 - canvas->width / 2,
+            //     y + HEIGHT / 2 - canvas->height / 2,
+            //     RECT_SIZE,
+            //     RECT_SIZE,
+            //     c
+            // );
             DrawRectangle(
-                x + WIDTH / 2 - canvas->width / 2,
-                y + HEIGHT / 2 - canvas->height / 2,
+                x,
+                y,
                 RECT_SIZE,
                 RECT_SIZE,
                 c
@@ -256,55 +260,58 @@ static void canvas_to_ascii(const Canvas *canvas) {
 }
 
 
-typedef enum {
-    MODE_GUI,
-    MODE_TUI
-    // TODO:
-    // mode_xlib,
-    // mode_wl,
-    // mode_opengl
-} Mode;
 
 
 
+static void run_gui(Cube *cube) {
+    size_t width  = 1000;
+    size_t height = width;
 
+    InitWindow(width, height, "cube");
+    SetTargetFPS(60);
 
-
-
-static void run_gui(Canvas *canvas, Cube *cube) {
-
-
-    InitWindow(WIDTH, HEIGHT, "cube");
-    SetTargetFPS(30);
+    Canvas canvas = canvas_new(width, height);
+    canvas_fill(&canvas, BLACK);
 
     while (!WindowShouldClose()) {
         BeginDrawing();
         {
             ClearBackground(BACKGROUND_COLOR);
-            canvas_render(canvas);
+            canvas_render(&canvas);
 
             cube_rotate(cube, false);
 
-            canvas_fill(canvas, BLACK);
-            cube_render_lines(canvas, cube);
+            canvas_fill(&canvas, BLACK);
+            cube_render_lines(&canvas, cube);
         }
         EndDrawing();
     }
 
     CloseWindow();
+    canvas_destroy(&canvas);
 }
 
 
-static void run_tui(Canvas *canvas, Cube *cube) {
+static void run_tui(Cube *cube) {
+    initscr();
+    size_t width  = getmaxx(stdscr);
+    size_t height = getmaxy(stdscr);
+
+    Canvas canvas = canvas_new(width, height);
+    canvas_fill(&canvas, BLACK);
+
     while (true) {
         system("clear");
         cube_rotate(cube, false);
-        cube_render_lines(canvas, cube);
-        canvas_to_ascii(canvas);
+        cube_render_lines(&canvas, cube);
+        canvas_to_ascii(&canvas);
         struct timespec time = { .tv_nsec = 1e8 };
         nanosleep(&time, NULL);
-        canvas_fill(canvas, BLACK);
+        canvas_fill(&canvas, BLACK);
     }
+
+    canvas_destroy(&canvas);
+    endwin();
 }
 
 
@@ -320,53 +327,27 @@ int main(int argc, char **argv) {
     }
 
 
-    Mode mode;
-    if (!strcmp(argv[1], "gui"))
-        mode = MODE_GUI;
-    else if (!strcmp(argv[1], "tui"))
-        mode = MODE_TUI;
-    else {
-        fprintf(stderr, "Unknown mode: %s\n", argv[1]);
-        return EXIT_FAILURE;
-    }
-
-
-    size_t width, height;
-    if (mode == MODE_TUI) {
-        width  = getmaxx(stdscr);
-        height = getmaxy(stdscr);
-    } else if (mode == MODE_GUI) {
-        // width = GetScreenWidth();
-        // height = GetScreenHeight();
-        width  = 500;
-        height = 500;
-    } else
-        assert(!"invalid mode");
-
-    Canvas canvas = canvas_new(width, width);
-    canvas_fill(&canvas, BLACK);
-
-    Color colors[6] = { 0 };
+    Color colors[6]     = { 0 };
     colors[CUBE_BOTTOM] = RED;
     colors[CUBE_TOP]    = BLUE;
     colors[CUBE_FRONT]  = ORANGE;
     colors[CUBE_BACK]   = YELLOW;
     colors[CUBE_LEFT]   = GREEN;
     colors[CUBE_RIGHT]  = PURPLE;
-    float size     = 0.4f;
-    Vector3 origin = { 0.5 - size / 2, 0.5 - size / 2, 0.0 };
-    Cube cube      = cube_new(origin, size, colors);
+    float size          = 0.4f;
+    Vector3 origin      = { 0.5 - size / 2, 0.5 - size / 2, 0.0 };
+    Cube cube           = cube_new(origin, size, colors);
 
 
-    if (mode == MODE_TUI)
-        run_tui(&canvas, &cube);
-    else if (mode == MODE_GUI)
-        run_gui(&canvas, &cube);
-    else
-        assert(!"invalid mode");
+    if (!strcmp(argv[1], "gui"))
+        run_gui(&cube);
+    else if (!strcmp(argv[1], "tui"))
+        run_tui(&cube);
+    else {
+        fprintf(stderr, "Unknown mode: %s\n", argv[1]);
+        return EXIT_FAILURE;
+    }
 
 
-
-    canvas_destroy(&canvas);
     return EXIT_SUCCESS;
 }
