@@ -245,17 +245,18 @@ static void cube_rotate(Cube *cube, bool rev) {
 
 
 
-static void canvas_to_ascii(const Canvas *canvas) {
+static void canvas_to_ascii(const Canvas *canvas, char c) {
     for (size_t y=0; y < canvas->height; ++y) {
         for (size_t x=0; x < canvas->width; ++x) {
-            Color c = canvas->grid[y][x];
-            Color ref = BLACK;
-            if (!memcmp(&c, &ref, sizeof (Color)))
-                putchar(' ');
+            Color cell = canvas->grid[y][x];
+            Color ref  = BLACK;
+
+            if (!memcmp(&cell, &ref, sizeof (Color)))
+                addch(' ');
             else
-                putchar('`');
+                addch(c);
+
         }
-        puts("");
     }
 }
 
@@ -300,14 +301,17 @@ static void run_tui(Cube *cube) {
     Canvas canvas = canvas_new(width, height);
     canvas_fill(&canvas, BLACK);
 
+    curs_set(0);
+
     while (true) {
-        system("clear");
         cube_rotate(cube, false);
         cube_render_lines(&canvas, cube);
-        canvas_to_ascii(&canvas);
+        canvas_to_ascii(&canvas, '_');
         struct timespec time = { .tv_nsec = 1e8 };
         nanosleep(&time, NULL);
         canvas_fill(&canvas, BLACK);
+        refresh();
+        clear();
     }
 
     canvas_destroy(&canvas);
