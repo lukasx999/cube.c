@@ -15,8 +15,7 @@
 #define HEIGHT 1080
 #define BACKGROUND_COLOR (Color) { 51, 51, 51, 255 }
 
-// #define CANVAS_WIDTH 1000
-#define CANVAS_WIDTH 50
+#define CANVAS_WIDTH 1000
 #define CANVAS_HEIGHT CANVAS_WIDTH
 #define RECT_SIZE 1
 
@@ -67,12 +66,6 @@ static void canvas_render(Canvas canvas) {
             );
         }
     }
-}
-
-static void vec_to_canvas(Canvas canvas, Vector3 v, Color color) {
-    size_t y = (1.0f - v.y) * CANVAS_HEIGHT;
-    size_t x = v.x * CANVAS_WIDTH;
-    canvas[y][x] = color;
 }
 
 
@@ -168,7 +161,7 @@ typedef enum {
     CUBE_RIGHT
 } CubeSurface;
 
-static Cube cube_new(Vector3 origin, float size) {
+static Cube cube_new(Vector3 origin, float size, Color *colors) {
     Cube cube = { 0 };
 
     Area bottom = {
@@ -176,7 +169,7 @@ static Cube cube_new(Vector3 origin, float size) {
         Vector3Add(origin, (Vector3) { size, 0.0f, 0.0f }),
         Vector3Add(origin, (Vector3) { 0.0f, 0.0f, -size }),
         Vector3Add(origin, (Vector3) { size, 0.0f, -size }),
-        RED
+        colors[0]
     };
     cube.areas[CUBE_BOTTOM] = bottom;
 
@@ -186,7 +179,7 @@ static Cube cube_new(Vector3 origin, float size) {
         Vector3Add(bottom.b, top_offset),
         Vector3Add(bottom.c, top_offset),
         Vector3Add(bottom.d, top_offset),
-        BLUE
+        colors[1]
     };
     cube.areas[CUBE_TOP] = top;
 
@@ -195,7 +188,7 @@ static Cube cube_new(Vector3 origin, float size) {
         Vector3Add(origin, (Vector3) { size, 0.0f, 0.0f }),
         Vector3Add(origin, (Vector3) { 0.0f, size, 0.0f }),
         Vector3Add(origin, (Vector3) { size, size, 0.0f }),
-        GREEN
+        colors[2]
     };
     cube.areas[CUBE_FRONT] = front;
 
@@ -205,7 +198,7 @@ static Cube cube_new(Vector3 origin, float size) {
         Vector3Add(front.b, back_offset),
         Vector3Add(front.c, back_offset),
         Vector3Add(front.d, back_offset),
-        YELLOW
+        colors[3]
     };
     cube.areas[CUBE_BACK] = back;
 
@@ -214,7 +207,7 @@ static Cube cube_new(Vector3 origin, float size) {
         origin,
         Vector3Add(origin, (Vector3) { 0.0f, size, -size }),
         Vector3Add(origin, (Vector3) { 0.0f, size, 0.0f }),
-        ORANGE
+        colors[4]
     };
     cube.areas[CUBE_LEFT] = left;
 
@@ -224,10 +217,11 @@ static Cube cube_new(Vector3 origin, float size) {
         Vector3Add(left.b, right_offset),
         Vector3Add(left.c, right_offset),
         Vector3Add(left.d, right_offset),
-        PURPLE
+        colors[5]
     };
     cube.areas[CUBE_RIGHT] = right;
 
+    cube.size = size;
     return cube;
 }
 
@@ -276,24 +270,31 @@ typedef enum {
 
 int main(int argc, char **argv) {
 
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <gui | tui>", argv[0]);
-        return EXIT_FAILURE;
-    }
+    // if (argc < 2) {
+    //     fprintf(stderr, "Usage: %s <gui | tui>", argv[0]);
+    //     return EXIT_FAILURE;
+    // }
 
-    const char *mode = argv[1];
-
-    if (!strcmp(mode, "gui")) {
-    }
+    // const char *mode = argv[1];
+    // if (!strcmp(mode, "gui")) {
+    // }
 
 
 
     Canvas canvas = { 0 };
     canvas_fill(canvas, BLACK);
 
-    float size = 0.3f;
-    Cube cube = cube_new((Vector3){ 0.5-size/2, 0.5-size/2, 0.0 }, size);
+    Color colors[6] = { 0 };
+    colors[CUBE_BOTTOM] = RED;
+    colors[CUBE_TOP]    = BLUE;
+    colors[CUBE_FRONT]  = ORANGE;
+    colors[CUBE_BACK]   = YELLOW;
+    colors[CUBE_LEFT]   = GREEN;
+    colors[CUBE_RIGHT]  = PURPLE;
+    float size = 0.4f;
+    Cube cube = cube_new((Vector3){ 0.5-size/2, 0.5-size/2, 0.0 }, size, colors);
 
+    #if 0
     while (true) {
         system("clear");
         cube_rotate(&cube, false);
@@ -304,8 +305,10 @@ int main(int argc, char **argv) {
         canvas_fill(canvas, BLACK);
     }
     return 0;
+    #endif
 
     InitWindow(WIDTH, HEIGHT, "cube");
+    SetTargetFPS(30);
 
     while (!WindowShouldClose()) {
         BeginDrawing();
