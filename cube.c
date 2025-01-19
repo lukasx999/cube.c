@@ -58,7 +58,6 @@ static void canvas_fill(Canvas *canvas, Color color) {
             canvas->grid[y][x] = color;
 }
 
-
 static void canvas_draw_line(Canvas *grid, Vector3 start, Vector3 end, Color color) {
     end.x += 1; // cannot draw perfect straight line, as end.x - start-x == 0
     float slope = (end.y - start.y) / (end.x - start.x);
@@ -70,8 +69,6 @@ static void canvas_draw_line(Canvas *grid, Vector3 start, Vector3 end, Color col
         grid->grid[(size_t)y][(size_t)x] = color;
     }
 }
-
-
 
 static void canvas_render(const Canvas *canvas) {
     for (size_t y=0; y < canvas->height; ++y) {
@@ -102,7 +99,6 @@ typedef struct {
     Color color;
 } Area;
 
-
 static bool area_is_on_screen(const Area *area) {
     Vector3 perp = Vector3Perpendicular(area->a);
     return perp.z < 0 ? false : true;
@@ -114,9 +110,7 @@ static void area_into_canvas(Canvas *canvas, const Area *area) {
         for (float x=area->a.x; x < area->b.x; x += step) {
             size_t index_x = x * canvas->width;
             size_t index_y = (1 - y) * canvas->height;
-
             canvas->grid[index_y][index_x] = area->color;
-
         }
     }
 }
@@ -124,31 +118,36 @@ static void area_into_canvas(Canvas *canvas, const Area *area) {
 static void area_into_canvas_lines(Canvas *canvas, const Area *area) {
     Vector3 canvas_dimensions = { canvas->width, canvas->height, 0.0f };
 
+    Vector3 a = Vector3Multiply(vector3_invert_y(area->a), canvas_dimensions);
+    Vector3 b = Vector3Multiply(vector3_invert_y(area->b), canvas_dimensions);
+    Vector3 c = Vector3Multiply(vector3_invert_y(area->c), canvas_dimensions);
+    Vector3 d = Vector3Multiply(vector3_invert_y(area->d), canvas_dimensions);
+
     canvas_draw_line(
         canvas,
-        Vector3Multiply(vector3_invert_y(area->a), canvas_dimensions),
-        Vector3Multiply(vector3_invert_y(area->b), canvas_dimensions),
+        a,
+        b,
         area->color
     );
 
     canvas_draw_line(
         canvas,
-        Vector3Multiply(vector3_invert_y(area->a), canvas_dimensions),
-        Vector3Multiply(vector3_invert_y(area->c), canvas_dimensions),
+        a,
+        c,
         area->color
     );
 
     canvas_draw_line(
         canvas,
-        Vector3Multiply(vector3_invert_y(area->c), canvas_dimensions),
-        Vector3Multiply(vector3_invert_y(area->d), canvas_dimensions),
+        c,
+        d,
         area->color
     );
 
     canvas_draw_line(
         canvas,
-        Vector3Multiply(vector3_invert_y(area->b), canvas_dimensions),
-        Vector3Multiply(vector3_invert_y(area->d), canvas_dimensions),
+        b,
+        d,
         area->color
     );
 
